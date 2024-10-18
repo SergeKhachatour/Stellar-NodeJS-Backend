@@ -1,5 +1,4 @@
 # Stellar-NodeJS-Backend
-# Stellar NodeJS Backend
 
 This is a Node.js backend application that interacts with the Stellar blockchain network. It provides various endpoints for creating accounts, issuing assets, managing trustlines, and performing transactions on the Stellar network.
 
