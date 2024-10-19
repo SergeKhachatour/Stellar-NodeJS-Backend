@@ -21,11 +21,7 @@ This is a Node.js backend application that interacts with the Stellar blockchain
 
 1. Clone the repository:
    ```
-<<<<<<< HEAD
-   git clone https://github.com/yourusername/stellar-nodejs-backend.git
-=======
    git clone https://github.com/SergeKhachatour/stellar-nodejs-backend.git
->>>>>>> 8ebeafd (commit)
    cd stellar-nodejs-backend
    ```
 
@@ -39,10 +35,7 @@ This is a Node.js backend application that interacts with the Stellar blockchain
    PORT=3000
    HOST=localhost
    PROTOCOL=http
-<<<<<<< HEAD
-=======
    API_KEY=stellar-api-key-654321
->>>>>>> 8ebeafd (commit)
    STELLAR_PROTOCOL=https
    STELLAR_SERVER=horizon-testnet.stellar.org
    STELLAR_NETWORK=TESTNET
