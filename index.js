@@ -16,6 +16,12 @@ app.use(express.json());
 
 const API_KEY = process.env.API_KEY;
 
+/**
+ * Middleware function to authenticate API requests using a token.
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -24,7 +30,10 @@ function authenticateToken(req, res, next) {
     next(); 
 }
 
-// Endpoint to create a new Stellar account
+/**
+ * Endpoint to create a new Stellar account.
+ * Uses Friendbot to fund the account on the testnet.
+ */
 app.post('/create-account', authenticateToken, async (req, res) => {
   try {
     const pair = StellarSdk.Keypair.random();
@@ -40,7 +49,10 @@ app.post('/create-account', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to issue an asset
+/**
+ * Endpoint to issue a new asset on the Stellar network.
+ * Requires the issuer's secret key and the asset code.
+ */
 app.post('/issue-asset', authenticateToken, async (req, res) => {
   const { issuerSecret, assetCode } = req.body;
   if (!issuerSecret || !assetCode) {
@@ -72,7 +84,10 @@ app.post('/issue-asset', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to create a trustline
+/**
+ * Endpoint to create a trustline for an asset.
+ * Allows an account to hold a specific asset issued by another account.
+ */
 app.post('/create-trustline', authenticateToken, async (req, res) => {
   const { accountSecret, assetCode, issuerPublicKey, limit} = req.body;
   if (!accountSecret || !assetCode || !issuerPublicKey) {
@@ -110,7 +125,10 @@ app.post('/create-trustline', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to transfer the asset
+/**
+ * Endpoint to transfer an asset between Stellar accounts.
+ * Requires sender's secret, recipient's public key, asset details, and amount.
+ */
 app.post('/transfer-asset', authenticateToken, async (req, res) => {
   const { senderSecret, recipientPublicKey, assetCode, issuerPublicKey, amount } = req.body;
   if (!senderSecret || !recipientPublicKey || !assetCode || !issuerPublicKey || !amount) {
@@ -142,7 +160,10 @@ app.post('/transfer-asset', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to show account balance
+/**
+ * Endpoint to show the balance of a Stellar account.
+ * Displays balances for all assets held by the account.
+ */
 app.post('/show-balance', authenticateToken, async (req, res) => {
   const { publicKey } = req.body;
   if (!publicKey) {
@@ -170,7 +191,10 @@ app.post('/show-balance', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to show trustlines for an account
+/**
+ * Endpoint to show all trustlines for a Stellar account.
+ * Lists all non-native assets the account is allowed to hold.
+ */
 app.post('/show-trustlines', authenticateToken, async (req, res) => {
   const { publicKey } = req.body;
   if (!publicKey) {
@@ -199,7 +223,10 @@ app.post('/show-trustlines', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to show issued assets
+/**
+ * Endpoint to show assets issued by a specific account.
+ * Lists all assets where the specified account is the issuer.
+ */
 app.post('/show-issued-assets', authenticateToken, async (req, res) => {
   const { issuerPublicKey } = req.body;
   if (!issuerPublicKey) {
