@@ -3,6 +3,9 @@ const StellarSdk = require('stellar-sdk');
 const axios = require('axios');
 require('dotenv').config();
 
+// Import the callContractMethod function
+const { callContractMethod } = require('./sorobanContract');
+
 const app = express();
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || 'localhost';
@@ -253,6 +256,31 @@ app.post('/show-issued-assets', authenticateToken, async (req, res) => {
     console.error('Error fetching issued assets:', error);
     res.status(500).json({ 
       error: error.message || 'An error occurred while fetching issued assets'
+    });
+  }
+});
+
+/**
+ * Endpoint to call a method on a Soroban smart contract.
+ * Requires contract ID, method name, and parameters.
+ */
+app.post('/call-contract-method', authenticateToken, async (req, res) => {
+  const { contractId, method, secret, parameters } = req.body;
+  if (!contractId || !method || !secret) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  try {
+    const result = await callContractMethod(contractId, method, secret, ...parameters);
+    res.json({
+      message: 'Contract method called successfully',
+      result: result
+    });
+  } catch (error) {
+    console.error('Error calling contract method:', error);
+    res.status(500).json({
+      message: 'Error calling contract method',
+      error: error.message || 'An error occurred while calling the contract method'
     });
   }
 });

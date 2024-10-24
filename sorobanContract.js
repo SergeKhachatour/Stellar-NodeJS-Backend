@@ -54,3 +54,7 @@ async function callContractMethod(contractId, method, secret, ...parameters) {
 
 // Example usage:
 // callContractMethod('CONTRACT_ID_HERE', 'METHOD_NAME_HERE', 'YOUR_SECRET_KEY', param1, param2, ...);
+
+module.exports = {
+  callContractMethod
+};
