@@ -1,8 +1,19 @@
-const StellarSdk = require('stellar-sdk');
+const {
+  SorobanRpc,
+  Contract,
+  TransactionBuilder,
+  Networks,
+  BASE_FEE,
+  Keypair,
+  nativeToScVal
+} = require('@stellar/stellar-sdk');
 
 // Configure the SDK to use the desired network
-const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-const networkPassphrase = StellarSdk.Networks.TESTNET; // Use StellarSdk.Networks.PUBLIC for mainnet
+const server = new SorobanRpc.Server('https://soroban-testnet.stellar.org:443');
+
+const DEFAULT_MAX_ATTEMPTS = 5;
+const DEFAULT_POLL_INTERVAL = 2000;  // 2 seconds between attempts
+const DEFAULT_TX_TIMEOUT = 180;  // Transaction timeout
 
 /**
  * Calls a method on a Stellar smart contract.
@@ -12,40 +23,68 @@ const networkPassphrase = StellarSdk.Networks.TESTNET; // Use StellarSdk.Network
  * @param {...any} parameters - The parameters to pass to the contract method.
  */
 async function callContractMethod(contractId, method, secret, ...parameters) {
+  // Add input validation
+  if (!contractId || !method || !secret) {
+    throw new Error('Missing required parameters: contractId, method, and secret are required');
+  }
+
+  // Add server health check with more specific error handling
   try {
-    // Set up the account that will submit the transaction
-    const sourceKeypair = StellarSdk.Keypair.fromSecret(secret);
-    const sourcePublicKey = sourceKeypair.publicKey();
+    await server.getHealth();
+  } catch (error) {
+    if (error.response?.status === 404) {
+      throw new Error('Soroban server endpoint not found');
+    } else if (error.code === 'ECONNREFUSED') {
+      throw new Error('Unable to connect to Soroban server');
+    }
+    throw new Error(`Soroban server health check failed: ${error.message}`);
+  }
 
-    // Prepare the transaction
-    const account = await server.loadAccount(sourcePublicKey);
+  const sourceKeypair = Keypair.fromSecret(secret);
+  const contract = new Contract(contractId);
+  
+  try {
+    const sourceAccount = await server.getAccount(sourceKeypair.publicKey());
     
-    // Create the operation
-    const operation = StellarSdk.Operation.invokeHostFunction({
-      function: method,
-      parameters: parameters.map(StellarSdk.xdr.ScVal.scvString),
-      contractId: contractId
-    });
-
-    // Build the transaction
-    let transaction = new StellarSdk.TransactionBuilder(account, { 
-      fee: StellarSdk.BASE_FEE,
-      networkPassphrase: networkPassphrase
+    let transaction = new TransactionBuilder(sourceAccount, {
+      fee: BASE_FEE,
+      networkPassphrase: Networks.TESTNET
     })
-      .addOperation(operation)
-      .setTimeout(30)
+      .addOperation(contract.call(method, ...parameters.map(param => nativeToScVal(param))))
+      .setTimeout(DEFAULT_TX_TIMEOUT)
       .build();
 
-    // Sign the transaction
-    transaction.sign(sourceKeypair);
+    let preparedTransaction = await server.prepareTransaction(transaction);
+    preparedTransaction.sign(sourceKeypair);
+    
+    // New implementation using recommended polling approach
+    const response = await server.sendTransaction(preparedTransaction);
+    
+    if (response.status === "PENDING") {
+      let attempts = 0;
+      
+      while (attempts++ < DEFAULT_MAX_ATTEMPTS) {
+        const status = await server.getTransaction(response.hash);
+        
+        switch (status.status) {
+          case "SUCCESS":
+            const transactionMeta = status.resultMetaXdr.v3().sorobanMeta();
+            return transactionMeta.returnValue();
+          case "FAILED":
+            throw new Error(`Transaction failed: ${status.resultXdr}. Contract: ${contractId}, Method: ${method}`);
+          case "NOT_FOUND":
+            console.debug(`Transaction not found, attempt ${attempts}/${DEFAULT_MAX_ATTEMPTS}`);
+            await new Promise(resolve => setTimeout(resolve, DEFAULT_POLL_INTERVAL));
+            continue;
+        }
+      }
+      throw new Error(`Transaction polling timeout after ${DEFAULT_MAX_ATTEMPTS} attempts. Hash: ${response.hash}`);
+    }
 
-    // Submit the transaction
-    const result = await server.submitTransaction(transaction);
-    console.log('Transaction submitted:', result);
+    throw new Error(`Unexpected transaction status: ${response.status}`);
 
-    return result;
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Contract call failed:', error);
     throw error;
   }
 }
